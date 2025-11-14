@@ -1,5 +1,5 @@
 title: Suspicious HTTP POST Activity Detection
-id: k0i19g0h-9f8e-4i0g-0h9g-0g1c0f0h8i7h
+id: a0019a00-9f8e-4a0a-0a90-0a1c0f0a8a70
 status: stable
 description: |
   Detects suspicious HTTP/HTTPS POST requests that may indicate command and

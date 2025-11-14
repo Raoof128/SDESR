@@ -1,5 +1,5 @@
 title: SeDebug Privilege Enabled Detection
-id: h7f96d8e-6c5b-4f9d-8e7f-7d9a8c8e5f4f
+id: a7f96d8e-6c5b-4f9d-8e7f-7d9a8c8e5f4f
 status: stable
 description: |
   Detects processes enabling SeDebugPrivilege, which allows reading and writing

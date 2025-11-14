@@ -1,5 +1,5 @@
 title: Rare Outbound Port Usage Detection
-id: l1j20h1i-0g9f-4j1h-1i0h-1h2d1g1i9j8i
+id: a1a20a10-0a9f-4a10-1a00-1a2d1a1a9a80
 status: stable
 description: |
   Detects network connections to uncommon ports that may indicate command and

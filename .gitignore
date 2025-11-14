@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# SIEM/Lab specific
+conversions/splunk/all_rules.spl
+conversions/elastic/all_rules.json
+lab/docker-volumes/
+*.log
+*.pcap
+
+# Testing artifacts
+testing/logs/
+testing/evidence/
+*.evtx
+
+# Secrets (never commit)
+.env
+secrets/
+*.key
+*.pem
+credentials.json
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary files
+tmp/
+temp/
+*.tmp

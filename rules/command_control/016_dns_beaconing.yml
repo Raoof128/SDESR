@@ -1,5 +1,5 @@
 title: DNS Beaconing Detection
-id: j9h08f9g-8e7d-4h9f-9g8f-9f0b9e9g7h6g
+id: a9108f90-8e7d-4a9f-9a8f-9f0b9e907a60
 status: stable
 description: |
   Detects DNS-based command and control (C2) beaconing patterns. Attackers use

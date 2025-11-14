@@ -1,5 +1,5 @@
 title: Process Injection Detection
-id: i8g97e8f-7d6c-4g9e-8f7e-8e9b8d8f6g5f
+id: a8a97e8f-7d6c-4a9e-8f7e-8e9b8d8f6a5f
 status: stable
 description: |
   Detects various process injection techniques used for privilege escalation,

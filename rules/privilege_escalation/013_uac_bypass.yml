@@ -1,5 +1,5 @@
 title: UAC Bypass Attempt Detection
-id: g9e87d7f-5c4b-4e9d-8f7e-6c9a8d7e4e3f
+id: a9e87d7f-5c4b-4e9d-8f7e-6c9a8d7e4e3f
 status: stable
 description: |
   Detects attempts to bypass User Account Control (UAC) using various known

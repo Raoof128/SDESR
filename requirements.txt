@@ -1,0 +1,15 @@
+# SIEM Detection Engineering Portfolio - Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# YAML parsing for Sigma rules
+PyYAML>=6.0.1
+
+# HTTP requests (optional - for web fetching)
+requests>=2.31.0
+
+# JSON schema validation (optional)
+jsonschema>=4.20.0
+
+# For future enhancements (optional):
+# pandas>=2.1.0  # For data analysis
+# jinja2>=3.1.2  # For templating
