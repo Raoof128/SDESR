@@ -1,0 +1,125 @@
+title: SAM Database Credential Dumping Detection
+id: d9f47a8c-3e2b-4d6f-9c8a-7e1f5b9d8c3a
+status: stable
+description: |
+  Detects attempts to access or copy the Security Account Manager (SAM) database,
+  which contains hashed local account credentials. Attackers often dump the SAM
+  database to crack passwords offline or use pass-the-hash techniques.
+
+  Detection includes reg.exe saving SAM hive, direct file access, and shadow copy
+  access patterns commonly used for credential dumping.
+
+  Maps to MITRE ATT&CK:
+  - T1003.002 (OS Credential Dumping: Security Account Manager)
+  - T1003.003 (OS Credential Dumping: NTDS)
+
+references:
+  - https://attack.mitre.org/techniques/T1003/002/
+  - https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  category: process_creation
+  product: windows
+
+detection:
+  selection_reg_save:
+    Image|endswith: '\reg.exe'
+    CommandLine|contains:
+      - 'save'
+      - 'export'
+    CommandLine|contains:
+      - 'HKLM\SAM'
+      - 'HKLM\SYSTEM'
+      - 'HKLM\SECURITY'
+      - 'HKEY_LOCAL_MACHINE\SAM'
+      - 'HKEY_LOCAL_MACHINE\SYSTEM'
+      - 'HKEY_LOCAL_MACHINE\SECURITY'
+
+  selection_vss_copy:
+    CommandLine|contains|all:
+      - 'copy'
+      - '\windows\system32\config\sam'
+    CommandLine|contains:
+      - '\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy'
+      - 'vssadmin'
+
+  selection_file_access:
+    TargetFilename|endswith:
+      - '\config\SAM'
+      - '\config\SYSTEM'
+      - '\config\SECURITY'
+    TargetFilename|contains: '\windows\system32\config\'
+
+  selection_powershell_sam:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - 'HKLM:\SAM\SAM\Domains\Account'
+      - 'Get-ItemProperty.*HKLM.*SAM'
+      - 'reg save HKLM\SAM'
+      - 'reg export HKLM\SAM'
+
+  selection_shadow_copy:
+    Image|endswith:
+      - '\vssadmin.exe'
+      - '\wmic.exe'
+    CommandLine|contains:
+      - 'create shadow'
+      - 'shadowcopy call create'
+
+  # NinjaCopy and similar tools
+  selection_tools:
+    CommandLine|contains:
+      - 'NinjaCopy'
+      - 'Invoke-NinjaCopy'
+      - 'esentutl'
+      - '/y.*\windows\ntds\ntds.dit'
+
+  filter_legitimate:
+    Image|startswith:
+      - 'C:\Windows\System32\vssvc.exe'
+      - 'C:\Windows\System32\svchost.exe'
+    User|contains:
+      - 'SYSTEM'
+      - 'NETWORK SERVICE'
+
+  filter_backup:
+    ParentImage|contains:
+      - 'backup'
+      - 'Veeam'
+      - 'Acronis'
+    CommandLine|contains:
+      - 'scheduled backup'
+      - 'system state'
+
+  condition: (selection_reg_save or selection_vss_copy or selection_file_access or selection_powershell_sam or selection_shadow_copy or selection_tools) and not filter_legitimate and not filter_backup
+
+falsepositives:
+  - Legitimate system backups
+  - Windows system restore operations
+  - System imaging software (Ghost, Clonezilla)
+  - Authorized forensic investigations
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.t1003.002
+  - attack.t1003.003
+  - detection.endpoint
+  - detection.threat_hunting
+
+fields:
+  - Image
+  - CommandLine
+  - User
+  - ParentImage
+  - ParentCommandLine
+  - TargetFilename
+  - SourceIP
+  - DestinationIP

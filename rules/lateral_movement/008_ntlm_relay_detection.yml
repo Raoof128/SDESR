@@ -1,0 +1,142 @@
+title: Suspicious NTLM Relay Activity Detection
+id: b8d74c9e-5f3a-4d6c-8e9f-4a7c9d8e2b6f
+status: stable
+description: |
+  Detects potential NTLM relay attacks where an attacker intercepts and relays
+  NTLM authentication requests to gain unauthorized access to network resources.
+  This is a critical lateral movement technique exploiting weak authentication.
+
+  Detection focuses on suspicious authentication patterns, multiple failed attempts
+  followed by success from same source, and authentication to sensitive services.
+
+  Maps to MITRE ATT&CK:
+  - T1557.001 (Adversary-in-the-Middle: LLMNR/NBT-NS Poisoning and SMB Relay)
+  - T1021.002 (Remote Services: SMB/Windows Admin Shares)
+  - T1187 (Forced Authentication)
+
+references:
+  - https://attack.mitre.org/techniques/T1557/001/
+  - https://www.microsoft.com/security/blog/ntlm-relay-attacks/
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  product: windows
+  service: security
+
+detection:
+  # Suspicious authentication patterns
+  selection_auth_logon:
+    EventID: 4624  # Successful logon
+    LogonType:
+      - 3  # Network logon
+      - 9  # NewCredentials
+    AuthenticationPackageName: 'NTLM'
+
+  selection_workstation_anomaly:
+    EventID: 4624
+    WorkstationName|endswith:
+      - '-KALI'
+      - '-LINUX'
+      - '-ATTACKER'
+      - 'UNKNOWN'
+
+  # Multiple failed authentications followed by success
+  selection_failed_then_success:
+    EventID:
+      - 4625  # Failed logon
+      - 4624  # Successful logon
+    LogonType: 3
+
+  # Authentication to domain controller from workstation (unusual)
+  selection_dc_auth:
+    EventID: 4624
+    LogonType: 3
+    TargetUserName|endswith: '$'  # Computer account
+    IpAddress|startswith:
+      - '10.'
+      - '172.'
+      - '192.168.'
+
+  # NTLM authentication without Kerberos pre-auth
+  selection_ntlm_only:
+    EventID: 4624
+    LogonType: 3
+    AuthenticationPackageName: 'NTLM'
+    KeyLength: 0  # No session key indicates relay
+
+  # SMB signing disabled detection
+  selection_smb_unsigned:
+    EventID: 5140  # Share access
+    ShareName|endswith:
+      - 'C$'
+      - 'ADMIN$'
+      - 'IPC$'
+
+  # Responder/Inveigh-like tools
+  selection_relay_tools:
+    Image|endswith:
+      - '\Responder.exe'
+      - '\Inveigh.exe'
+      - '\ntlmrelayx.py'
+      - '\MultiRelay.py'
+    CommandLine|contains:
+      - '-wpad'
+      - '-I'
+      - '--relay'
+      - 'SMBRelay'
+
+  filter_legitimate:
+    SourceNetworkAddress:
+      - '127.0.0.1'
+      - '::1'
+    IpAddress:
+      - '127.0.0.1'
+      - '::1'
+
+  filter_known_systems:
+    WorkstationName|startswith:
+      - 'DC-'
+      - 'EXCH-'
+      - 'SQL-'
+      - 'FILE-'
+
+  filter_service_accounts:
+    TargetUserName|contains:
+      - 'svc_'
+      - 'service'
+      - 'admin'
+
+  condition: (selection_auth_logon or selection_workstation_anomaly or selection_failed_then_success or selection_dc_auth or selection_ntlm_only or selection_smb_unsigned or selection_relay_tools) and not filter_legitimate and not filter_known_systems
+
+falsepositives:
+  - Legacy applications requiring NTLM
+  - Third-party software not supporting Kerberos
+  - Network devices authenticating via NTLM
+  - Known service accounts with NTLM authentication
+
+level: high
+
+tags:
+  - attack.lateral_movement
+  - attack.credential_access
+  - attack.t1557.001
+  - attack.t1021.002
+  - attack.t1187
+  - detection.network
+  - detection.threat_hunting
+
+fields:
+  - EventID
+  - TargetUserName
+  - WorkstationName
+  - IpAddress
+  - SourceNetworkAddress
+  - LogonType
+  - AuthenticationPackageName
+  - KeyLength
+  - ShareName
+  - Image
+  - CommandLine

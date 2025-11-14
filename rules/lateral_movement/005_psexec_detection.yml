@@ -1,0 +1,118 @@
+title: PsExec Remote Execution Detection
+id: e4b89c7f-2d3a-4e8c-9f6a-1c7d8e9f2b5a
+status: stable
+description: |
+  Detects the use of PsExec, a legitimate Sysinternals tool frequently abused by
+  attackers for remote command execution and lateral movement. PsExec creates a
+  service on the remote system and executes commands in SYSTEM context.
+
+  Detection focuses on named pipe creation, service installation patterns, and
+  characteristic PsExec command-line arguments.
+
+  Maps to MITRE ATT&CK:
+  - T1021.002 (Remote Services: SMB/Windows Admin Shares)
+  - T1569.002 (System Services: Service Execution)
+  - T1570 (Lateral Tool Transfer)
+
+references:
+  - https://attack.mitre.org/techniques/T1021/002/
+  - https://docs.microsoft.com/en-us/sysinternals/downloads/psexec
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  category: process_creation
+  product: windows
+
+detection:
+  selection_image:
+    Image|endswith:
+      - '\PsExec.exe'
+      - '\PsExec64.exe'
+      - '\PSEXESVC.exe'
+
+  selection_original_filename:
+    OriginalFileName:
+      - 'psexec.exe'
+      - 'psexec.c'
+      - 'PSEXESVC.exe'
+
+  selection_cmdline:
+    CommandLine|contains:
+      - ' -accepteula'
+      - ' /accepteula'
+      - ' -s '
+      - ' /s '
+      - ' -c '
+      - ' /c '
+      - ' -d '
+      - ' /d '
+      - '\\\\*\\admin$'
+      - '\\\\*\\C$'
+
+  selection_service:
+    Image|endswith: '\services.exe'
+    CommandLine|contains:
+      - 'PSEXESVC'
+      - 'PAExec'
+
+  # Named pipe characteristic of PsExec
+  selection_pipe:
+    PipeName|contains:
+      - '\psexec'
+      - '\PSEXESVC'
+      - '\PAExec'
+
+  # Network connection to admin shares
+  selection_network:
+    DestinationPort: 445
+    CommandLine|contains:
+      - '\\admin$'
+      - '\\C$'
+      - '\\IPC$'
+
+  filter_legitimate:
+    User|contains:
+      - 'SYSTEM'
+      - 'LOCAL SERVICE'
+    ParentImage|contains:
+      - 'C:\Windows\System32\services.exe'
+
+  filter_authorized_tools:
+    Image|startswith:
+      - 'C:\Program Files\AdminTools\'
+      - 'C:\IT\Tools\'
+      - 'C:\Program Files\SCCM\'
+
+  condition: (selection_image or selection_original_filename or selection_cmdline or selection_service or selection_pipe or selection_network) and not filter_legitimate and not filter_authorized_tools
+
+falsepositives:
+  - Authorized system administration activities
+  - IT department using PsExec for legitimate remote management
+  - SCCM/deployment tools using PsExec-like mechanisms
+  - Scheduled maintenance tasks
+
+level: high
+
+tags:
+  - attack.lateral_movement
+  - attack.t1021.002
+  - attack.t1569.002
+  - attack.t1570
+  - attack.execution
+  - detection.endpoint
+  - detection.threat_hunting
+
+fields:
+  - Image
+  - CommandLine
+  - User
+  - ParentImage
+  - ParentCommandLine
+  - SourceIP
+  - DestinationIP
+  - DestinationPort
+  - PipeName
+  - ServiceName

@@ -1,0 +1,182 @@
+title: Suspicious HTTP POST Activity Detection
+id: k0i19g0h-9f8e-4i0g-0h9g-0g1c0f0h8i7h
+status: stable
+description: |
+  Detects suspicious HTTP/HTTPS POST requests that may indicate command and
+  control communication or data exfiltration. Focuses on unusual POST patterns
+  from non-browser processes, excessive POST frequency, and suspicious user
+  agents.
+
+  HTTP/HTTPS is the most common C2 channel because it blends with normal web
+  traffic and is rarely blocked.
+
+  Maps to MITRE ATT&CK:
+  - T1071.001 (Application Layer Protocol: Web Protocols)
+  - T1071 (Application Layer Protocol)
+  - T1041 (Exfiltration Over C2 Channel)
+
+references:
+  - https://attack.mitre.org/techniques/T1071/001/
+  - https://www.fireeye.com/blog/threat-research/http-c2-detection.html
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  category: proxy
+  product: windows
+
+detection:
+  # Non-browser processes making HTTP requests
+  selection_process_http:
+    method: 'POST'
+    process|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\cmd.exe'
+      - '\rundll32.exe'
+      - '\regsvr32.exe'
+      - '\mshta.exe'
+      - '\wmic.exe'
+      - '\certutil.exe'
+      - '\bitsadmin.exe'
+
+  # Suspicious user agents
+  selection_user_agent:
+    user_agent|contains:
+      - 'curl'
+      - 'wget'
+      - 'python'
+      - 'powershell'
+      - 'WinHttp'
+      - 'Microsoft BITS'
+
+  # High frequency POST requests
+  selection_high_frequency_post:
+    method: 'POST'
+    request_count: '>100'  # Per hour
+    url_pattern: 'consistent'  # Same URL repeatedly
+
+  # Small, regular-sized POST bodies (beaconing)
+  selection_regular_sized_posts:
+    method: 'POST'
+    content_length: '<1024'
+    content_length_variance: '<50'  # Very consistent size
+    request_count: '>20'
+
+  # POST to suspicious paths
+  selection_suspicious_paths:
+    method: 'POST'
+    uri_path|contains:
+      - '/login.php'
+      - '/gate.php'
+      - '/upload.php'
+      - '/api.php'
+      - '/panel'
+      - '/admin.php'
+      - '?id='
+
+  # Base64 encoded POST data
+  selection_encoded_post:
+    method: 'POST'
+    post_data|re: '^[A-Za-z0-9+/]+=*$'
+    content_length: '>100'
+
+  # HTTPS to non-standard ports
+  selection_nonstandard_https:
+    method: 'POST'
+    protocol: 'https'
+    destination_port:
+      - 8443
+      - 8080
+      - 4443
+      - 9443
+
+  # Long-running sessions with regular POSTs
+  selection_long_session:
+    method: 'POST'
+    session_duration: '>3600'  # 1 hour+
+    regular_interval: 'true'
+    interval_seconds: 'BETWEEN 30 AND 300'
+
+  # PowerShell web requests
+  selection_powershell_web:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - 'Invoke-WebRequest'
+      - 'Invoke-RestMethod'
+      - 'Net.WebClient'
+      - 'DownloadString'
+      - 'DownloadFile'
+      - '-Method POST'
+      - '-Uri'
+
+  # Known C2 frameworks user agents
+  selection_c2_user_agents:
+    user_agent|contains:
+      - 'Cobalt Strike'
+      - 'Metasploit'
+      - 'Empire'
+      - 'Covenant'
+      - 'PoshC2'
+
+  filter_legitimate_software:
+    process|startswith:
+      - 'C:\Program Files\'
+      - 'C:\Program Files (x86)\'
+    process|contains:
+      - 'Google\Chrome'
+      - 'Mozilla Firefox'
+      - 'Microsoft\Edge'
+
+  filter_windows_updates:
+    user_agent|contains:
+      - 'Windows Update'
+      - 'Microsoft-Delivery-Optimization'
+    destination|endswith:
+      - '.windowsupdate.com'
+      - '.update.microsoft.com'
+
+  filter_known_services:
+    destination|endswith:
+      - '.microsoft.com'
+      - '.office.com'
+      - '.azure.com'
+      - '.amazonaws.com'
+
+  condition: (selection_process_http or selection_user_agent or selection_high_frequency_post or selection_regular_sized_posts or selection_suspicious_paths or selection_encoded_post or selection_nonstandard_https or selection_long_session or selection_powershell_web or selection_c2_user_agents) and not filter_legitimate_software and not filter_windows_updates and not filter_known_services
+
+falsepositives:
+  - Legitimate software update mechanisms
+  - Monitoring and telemetry services
+  - API integrations
+  - Automated testing frameworks
+  - IoT devices with regular check-ins
+
+level: medium
+
+tags:
+  - attack.command_and_control
+  - attack.exfiltration
+  - attack.t1071.001
+  - attack.t1071
+  - attack.t1041
+  - detection.network
+  - detection.proxy
+
+fields:
+  - source_ip
+  - destination_ip
+  - destination
+  - uri_path
+  - method
+  - user_agent
+  - content_length
+  - process
+  - Image
+  - CommandLine
+  - response_code
+  - bytes_out

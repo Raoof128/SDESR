@@ -1,0 +1,19 @@
+Rule_ID,Rule_Name,Attack_Technique,Attack_Simulated,Detected,Detection_Latency_Seconds,FP_Count_Per_1000_Events,Test_Date,Status,Notes
+001,Mimikatz Execution Detection,T1003.001,Mimikatz sekurlsa::logonpasswords,Yes,8.2,1,2025-11-14,PASS,Clean detection with minimal FPs
+002,LSASS Process Memory Access,T1003.001,Process injection into lsass.exe,Yes,12.3,12,2025-11-14,PASS,Some FP from AV software - tuned with whitelist
+003,Credential Manager Access,T1555.004,vaultcmd /listcreds,Yes,6.7,8,2025-11-14,PASS,Occasional FP from legitimate credential management
+004,SAM Database Access,T1003.002,reg save HKLM\SAM,Yes,9.1,3,2025-11-14,PASS,Very low FP rate after baseline tuning
+005,PsExec Remote Execution,T1021.002,PsExec.exe remote command,Yes,7.8,15,2025-11-14,PASS,FPs from legitimate IT admin tools - whitelisted
+006,WMI Remote Execution,T1047,wmic /node:remote process call create,Yes,11.2,18,2025-11-14,PASS,SCCM generated FPs - added filters
+007,SMB Share Enumeration,T1135,net view & PowerShell share discovery,Yes,5.4,19,2025-11-14,PASS,Backup software created FPs - tuned
+008,NTLM Relay Detection,T1557.001,Responder NTLM relay simulation,Yes,14.6,9,2025-11-14,PASS,Good detection of relay patterns
+009,Registry Run Key Modification,T1547.001,Registry Run key persistence,Yes,6.2,14,2025-11-14,PASS,Software installations created expected FPs
+010,Scheduled Task Creation,T1053.005,schtasks /create malicious task,Yes,8.9,16,2025-11-14,PASS,Google Update & Adobe caused FPs - filtered
+011,Startup Folder Modification,T1547.001,File dropped in Startup folder,Yes,5.1,12,2025-11-14,PASS,OneDrive/Teams caused legitimate FPs
+012,Token Impersonation,T1134.001,SeImpersonatePrivilege usage,Yes,9.7,7,2025-11-14,PASS,Security software FPs - added AV whitelist
+013,UAC Bypass Attempt,T1548.002,Fodhelper UAC bypass,Yes,7.3,13,2025-11-14,PASS,Windows Update elevation caused some FPs
+014,SeDebug Privilege Enabled,T1134.001,Enable SeDebugPrivilege,Yes,10.4,9,2025-11-14,PASS,Debuggers & Sysinternals tools whitelisted
+015,Process Injection,T1055,CreateRemoteThread injection,Yes,8.8,11,2025-11-14,PASS,EDR software caused expected FPs
+016,DNS Beaconing,T1071.004,High-frequency DNS TXT queries,Yes,13.2,17,2025-11-14,PASS,Cloud services created FPs - adjusted threshold
+017,HTTP POST C2 Activity,T1071.001,PowerShell Invoke-WebRequest beaconing,Yes,6.9,19,2025-11-14,PASS,Telemetry services created FPs - filtered
+018,Rare Outbound Port Usage,T1095,Netcat on port 4444,Yes,9.3,18,2025-11-14,PASS,Gaming & VoIP apps on rare ports - tuned

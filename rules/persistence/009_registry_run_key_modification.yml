@@ -1,0 +1,118 @@
+title: Registry Run Key Modification Detection
+id: c7e85d9f-4a3b-4e8c-9d6f-5b8a7c9e2d1f
+status: stable
+description: |
+  Detects modifications to Windows Registry Run and RunOnce keys, a common
+  persistence mechanism used by malware and attackers. These keys execute
+  programs automatically at system startup or user logon.
+
+  Detection includes direct registry modifications via reg.exe, PowerShell,
+  and direct registry writes to known persistence locations.
+
+  Maps to MITRE ATT&CK:
+  - T1547.001 (Boot or Logon Autostart Execution: Registry Run Keys)
+  - T1112 (Modify Registry)
+
+references:
+  - https://attack.mitre.org/techniques/T1547/001/
+  - https://docs.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  category: registry_event
+  product: windows
+
+detection:
+  selection_registry_paths:
+    TargetObject|contains:
+      - '\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\'
+      - '\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce\'
+      - '\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices\'
+      - '\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnceEx\'
+      - '\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Run\'
+      - '\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run\'
+
+  selection_hkcu:
+    TargetObject|contains:
+      - 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run'
+      - 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run'
+
+  selection_reg_add:
+    Image|endswith: '\reg.exe'
+    CommandLine|contains|all:
+      - 'add'
+      - '\CurrentVersion\Run'
+
+  selection_powershell:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - 'New-ItemProperty'
+      - 'Set-ItemProperty'
+      - 'CurrentVersion\Run'
+
+  # Suspicious values in Run keys
+  selection_suspicious_values:
+    Details|contains:
+      - '\AppData\Roaming\'
+      - '\AppData\Local\Temp\'
+      - '\Users\Public\'
+      - '\ProgramData\'
+      - 'powershell'
+      - 'cmd.exe /c'
+      - 'mshta'
+      - 'rundll32'
+      - 'regsvr32'
+      - 'wscript'
+      - 'cscript'
+
+  filter_legitimate:
+    Image|startswith:
+      - 'C:\Program Files\'
+      - 'C:\Program Files (x86)\'
+      - 'C:\Windows\System32\'
+      - 'C:\Windows\SysWOW64\'
+
+  filter_windows_updates:
+    Details|contains:
+      - 'Microsoft\Windows\Update'
+      - 'Windows Defender'
+      - 'OneDrive'
+
+  filter_known_software:
+    Details|contains:
+      - 'Google\Chrome'
+      - 'Mozilla\Firefox'
+      - 'Adobe\Acrobat'
+      - 'Zoom\bin'
+
+  condition: (selection_registry_paths or selection_hkcu or selection_reg_add or selection_powershell or selection_suspicious_values) and not filter_legitimate and not filter_windows_updates and not filter_known_software
+
+falsepositives:
+  - Legitimate software installation
+  - Windows updates and system services
+  - User-installed applications adding startup entries
+  - System administrators configuring autostart applications
+
+level: high
+
+tags:
+  - attack.persistence
+  - attack.t1547.001
+  - attack.t1112
+  - attack.privilege_escalation
+  - detection.endpoint
+  - sysmon.event_id_13
+
+fields:
+  - TargetObject
+  - Details
+  - Image
+  - CommandLine
+  - User
+  - ProcessId
+  - EventType

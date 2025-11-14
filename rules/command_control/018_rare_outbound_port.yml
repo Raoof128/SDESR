@@ -1,0 +1,225 @@
+title: Rare Outbound Port Usage Detection
+id: l1j20h1i-0g9f-4j1h-1i0h-1h2d1g1i9j8i
+status: stable
+description: |
+  Detects network connections to uncommon ports that may indicate command and
+  control communication or non-application layer protocols. Attackers often use
+  non-standard ports to evade basic firewall rules and blend in with legitimate
+  traffic.
+
+  Detection focuses on workstations making connections to rare high ports,
+  protocols tunneled over non-standard ports, and processes that don't normally
+  make network connections.
+
+  Maps to MITRE ATT&CK:
+  - T1095 (Non-Application Layer Protocol)
+  - T1571 (Non-Standard Port)
+  - T1071 (Application Layer Protocol)
+
+references:
+  - https://attack.mitre.org/techniques/T1095/
+  - https://attack.mitre.org/techniques/T1571/
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  product: windows
+  service: sysmon
+
+detection:
+  # Network connections from suspicious processes
+  selection_process_network:
+    EventID: 3  # Network connection
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\cmd.exe'
+      - '\rundll32.exe'
+      - '\regsvr32.exe'
+      - '\mshta.exe'
+      - '\wscript.exe'
+      - '\cscript.exe'
+      - '\certutil.exe'
+
+  # Rare high ports (>10000) outbound
+  selection_high_ports:
+    EventID: 3
+    Initiated: 'true'
+    DestinationPort: '>10000'
+    DestinationPort:
+      - '14444'
+      - '18246'
+      - '50050'
+      - '4444'
+      - '5555'
+      - '31337'
+
+  # Common C2 ports
+  selection_c2_ports:
+    EventID: 3
+    Initiated: 'true'
+    DestinationPort:
+      - '4444'  # Metasploit default
+      - '5555'  # Android Debug Bridge (ADB) - abused for C2
+      - '6666'  # IRC-based C2
+      - '7777'
+      - '8080'  # HTTP proxy - common C2
+      - '8443'  # HTTPS alternate
+      - '8888'
+      - '9999'
+      - '31337'  # Elite/leet port
+      - '4443'
+      - '50050'  # Cobalt Strike default
+
+  # Non-browser making HTTPS-like connections
+  selection_nonbrowser_ssl:
+    EventID: 3
+    Initiated: 'true'
+    DestinationPort:
+      - '443'
+      - '8443'
+      - '4443'
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\rundll32.exe'
+      - '\regsvr32.exe'
+
+  # IRC ports (commonly used for C2)
+  selection_irc_ports:
+    EventID: 3
+    Initiated: 'true'
+    DestinationPort:
+      - '6667'
+      - '6668'
+      - '6669'
+      - '7000'
+
+  # Raw socket connections
+  selection_raw_sockets:
+    EventID: 3
+    Protocol: 'raw'
+
+  # Connections to unusual services
+  selection_unusual_services:
+    EventID: 3
+    Initiated: 'true'
+    DestinationPort:
+      - '1337'  # WASTE (C2)
+      - '9001'  # Tor
+      - '9030'  # Tor directory
+      - '12345'  # NetBus trojan
+      - '20034'  # NetBus Pro
+      - '27374'  # SubSeven trojan
+      - '31337'  # Back Orifice
+
+  # Outbound connections from system directories
+  selection_system_dir_network:
+    EventID: 3
+    Initiated: 'true'
+    Image|contains:
+      - '\Windows\Temp\'
+      - '\Users\Public\'
+      - '\ProgramData\'
+      - '\AppData\Local\Temp\'
+
+  # Multiple port scanning behavior
+  selection_port_scan:
+    EventID: 3
+    Initiated: 'true'
+    unique_dest_ports: '>20'
+    time_window: '60'  # 20+ ports in 60 seconds
+
+  # Reverse shell indicators
+  selection_reverse_shell:
+    EventID: 3
+    Initiated: 'true'
+    Image|endswith:
+      - '\nc.exe'
+      - '\ncat.exe'
+      - '\netcat.exe'
+      - '\socat.exe'
+
+  # PowerShell network connections
+  selection_powershell_network:
+    EventID: 3
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    DestinationPort:
+      - '4444'
+      - '443'
+      - '8080'
+      - '8443'
+    DestinationIp|startswith:
+      - '10.'
+      - '172.'
+      - '192.168.'
+
+  filter_legitimate_software:
+    Image|startswith:
+      - 'C:\Program Files\'
+      - 'C:\Program Files (x86)\'
+
+  filter_known_services:
+    Image|contains:
+      - 'Chrome'
+      - 'Firefox'
+      - 'Edge'
+      - 'OneDrive'
+      - 'Dropbox'
+      - 'Teams'
+      - 'Zoom'
+
+  filter_system_processes:
+    Image|endswith:
+      - '\svchost.exe'
+      - '\services.exe'
+      - '\system'
+    Image|startswith: 'C:\Windows\System32\'
+
+  filter_internal_management:
+    DestinationIp|startswith:
+      - '10.0.0.'  # Adjust to your internal ranges
+      - '192.168.'
+    DestinationPort:
+      - '5985'  # WinRM HTTP
+      - '5986'  # WinRM HTTPS
+      - '3389'  # RDP
+      - '22'    # SSH
+      - '445'   # SMB
+
+  condition: (selection_process_network or selection_high_ports or selection_c2_ports or selection_nonbrowser_ssl or selection_irc_ports or selection_raw_sockets or selection_unusual_services or selection_system_dir_network or selection_port_scan or selection_reverse_shell or selection_powershell_network) and not filter_legitimate_software and not filter_known_services and not filter_system_processes and not filter_internal_management
+
+falsepositives:
+  - Legitimate software using non-standard ports
+  - Gaming applications
+  - P2P file sharing applications (if allowed)
+  - Custom enterprise applications
+  - Development/testing environments
+  - VPN software
+  - Remote support tools
+
+level: medium
+
+tags:
+  - attack.command_and_control
+  - attack.t1095
+  - attack.t1571
+  - attack.t1071
+  - detection.network
+  - sysmon.event_id_3
+
+fields:
+  - SourceIp
+  - SourcePort
+  - DestinationIp
+  - DestinationPort
+  - Image
+  - User
+  - Protocol
+  - Initiated
+  - CommandLine
+  - ParentImage

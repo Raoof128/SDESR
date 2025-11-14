@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  # Splunk Enterprise
+  splunk:
+    image: splunk/splunk:9.1
+    container_name: siem-lab-splunk
+    hostname: splunk
+    environment:
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_PASSWORD=Changeme123!
+      - SPLUNK_HEC_TOKEN=abcd1234-ef56-7890-ab12-cd3456ef7890
+    ports:
+      - "8000:8000"   # Web UI
+      - "8088:8088"   # HEC
+      - "9997:9997"   # Forwarder
+    volumes:
+      - splunk-data:/opt/splunk/var
+      - splunk-etc:/opt/splunk/etc
+      - ./sysmon-config.xml:/tmp/sysmon-config.xml:ro
+    networks:
+      - siem-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: siem-lab-elasticsearch
+    hostname: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=Changeme123!
+      - xpack.security.http.ssl.enabled=false
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elastic-data:/usr/share/elasticsearch/data
+    networks:
+      - siem-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: siem-lab-kibana
+    hostname: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=Changeme123!
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - siem-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  # Logstash (optional - for advanced log processing)
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: siem-lab-logstash
+    hostname: logstash
+    volumes:
+      - ./logstash-config:/usr/share/logstash/pipeline:ro
+    environment:
+      - "LS_JAVA_OPTS=-Xmx512m -Xms512m"
+    ports:
+      - "5000:5000/tcp"  # Beats input
+      - "5000:5000/udp"  # Beats input
+      - "5044:5044"      # Beats input
+    depends_on:
+      - elasticsearch
+    networks:
+      - siem-network
+    restart: unless-stopped
+
+  # Filebeat (log shipper)
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    container_name: siem-lab-filebeat
+    hostname: filebeat
+    user: root
+    volumes:
+      - ./filebeat-config.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=Changeme123!
+    depends_on:
+      - elasticsearch
+      - kibana
+    networks:
+      - siem-network
+    restart: unless-stopped
+    command: filebeat -e -strict.perms=false
+
+volumes:
+  splunk-data:
+    driver: local
+  splunk-etc:
+    driver: local
+  elastic-data:
+    driver: local
+
+networks:
+  siem-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

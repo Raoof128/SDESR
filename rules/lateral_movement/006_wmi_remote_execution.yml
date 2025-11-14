@@ -1,0 +1,127 @@
+title: WMI Remote Command Execution Detection
+id: f7c94a8d-3e6b-4f9c-8a7e-2d1f9c8e5b3a
+status: stable
+description: |
+  Detects Windows Management Instrumentation (WMI) being used for remote command
+  execution, a common technique for lateral movement that is often harder to detect
+  than traditional methods. WMI provides legitimate remote administration capabilities
+  frequently abused by attackers.
+
+  Detection includes wmic.exe usage, WMI event consumer creation, and PowerShell
+  WMI cmdlets executing remote commands.
+
+  Maps to MITRE ATT&CK:
+  - T1047 (Windows Management Instrumentation)
+  - T1021.006 (Remote Services: Windows Remote Management)
+  - T1570 (Lateral Tool Transfer)
+
+references:
+  - https://attack.mitre.org/techniques/T1047/
+  - https://www.fireeye.com/blog/threat-research/wmi-malware.html
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  category: process_creation
+  product: windows
+
+detection:
+  selection_wmic:
+    Image|endswith: '\wmic.exe'
+    CommandLine|contains:
+      - '/node:'
+      - '-node:'
+      - 'process call create'
+      - 'path Win32_Process'
+
+  selection_wmic_remote:
+    Image|endswith: '\wmic.exe'
+    CommandLine|contains|all:
+      - '/node:'
+      - 'process'
+      - 'create'
+
+  selection_powershell_wmi:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - 'Invoke-WmiMethod'
+      - 'Invoke-CimMethod'
+      - 'Get-WmiObject'
+      - 'Set-WmiInstance'
+      - 'Register-WmiEvent'
+      - 'Win32_Process.*Create'
+
+  selection_powershell_remote:
+    CommandLine|contains|all:
+      - 'ComputerName'
+      - 'Win32_Process'
+    CommandLine|contains:
+      - 'Create'
+      - 'Invoke'
+
+  # WMI Event Consumer (persistence + execution)
+  selection_wmi_consumer:
+    CommandLine|contains:
+      - '__EventFilter'
+      - '__EventConsumer'
+      - '__FilterToConsumerBinding'
+      - 'ActiveScriptEventConsumer'
+      - 'CommandLineEventConsumer'
+
+  # Suspicious parent process
+  selection_suspicious_parent:
+    ParentImage|endswith:
+      - '\cmd.exe'
+      - '\powershell.exe'
+      - '\mshta.exe'
+      - '\rundll32.exe'
+      - '\cscript.exe'
+      - '\wscript.exe'
+    Image|endswith: '\wmic.exe'
+
+  filter_legitimate:
+    User|contains:
+      - 'SYSTEM'
+      - 'NETWORK SERVICE'
+    ParentImage|contains:
+      - 'C:\Windows\System32\svchost.exe'
+      - 'C:\Windows\CCM\'
+
+  filter_sccm:
+    CommandLine|contains:
+      - 'SMS_Client'
+      - 'CCM_'
+      - 'SCCM'
+
+  condition: (selection_wmic or selection_wmic_remote or selection_powershell_wmi or selection_powershell_remote or selection_wmi_consumer or selection_suspicious_parent) and not filter_legitimate and not filter_sccm
+
+falsepositives:
+  - SCCM client operations
+  - Authorized system administration scripts
+  - Monitoring and management software
+  - Inventory collection tools
+
+level: high
+
+tags:
+  - attack.lateral_movement
+  - attack.execution
+  - attack.t1047
+  - attack.t1021.006
+  - attack.t1570
+  - detection.endpoint
+  - detection.threat_hunting
+
+fields:
+  - Image
+  - CommandLine
+  - User
+  - ParentImage
+  - ParentCommandLine
+  - SourceIP
+  - DestinationIP
+  - DestinationHostname

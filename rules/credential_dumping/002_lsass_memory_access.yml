@@ -1,0 +1,100 @@
+title: LSASS Process Memory Access Detection
+id: b7f28c91-4d2e-4a8c-9b3f-2e5a7c9d8f1a
+status: stable
+description: |
+  Detects suspicious access to the Local Security Authority Subsystem Service (lsass.exe)
+  process memory, which contains credentials in plaintext, hashes, and Kerberos tickets.
+  Legitimate access is rare and typically limited to system processes.
+
+  This detection identifies processes attempting to read lsass.exe memory with specific
+  access rights commonly used by credential dumping tools.
+
+  Maps to MITRE ATT&CK:
+  - T1003.001 (OS Credential Dumping: LSASS Memory)
+
+references:
+  - https://attack.mitre.org/techniques/T1003/001/
+  - https://docs.microsoft.com/en-us/windows/win32/procthread/process-security-and-access-rights
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  product: windows
+  service: sysmon
+  definition: 'Requires Sysmon EventID 10 (ProcessAccess)'
+
+detection:
+  selection_target:
+    TargetImage|endswith: '\lsass.exe'
+
+  selection_access_rights:
+    GrantedAccess:
+      - '0x1410'   # PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
+      - '0x1010'   # PROCESS_QUERY_INFORMATION | PROCESS_VM_READ (alternate)
+      - '0x0410'   # PROCESS_VM_READ
+      - '0x1438'   # PROCESS_VM_READ | PROCESS_QUERY_INFORMATION | PROCESS_CREATE_THREAD
+      - '0x143a'   # Full access for dumping
+      - '0x1fffff'  # PROCESS_ALL_ACCESS
+
+  # Suspicious source processes
+  selection_suspicious_source:
+    SourceImage|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\cmd.exe'
+      - '\rundll32.exe'
+      - '\regsvr32.exe'
+      - '\mshta.exe'
+      - '\wmic.exe'
+      - '\cscript.exe'
+      - '\wscript.exe'
+
+  filter_legitimate:
+    SourceImage|startswith:
+      - 'C:\Windows\System32\'
+      - 'C:\Windows\SysWOW64\'
+      - 'C:\Program Files\Windows Defender\'
+      - 'C:\Program Files\Microsoft Security Client\'
+    SourceImage|endswith:
+      - '\svchost.exe'
+      - '\services.exe'
+      - '\csrss.exe'
+      - '\wininit.exe'
+      - '\vmtoolsd.exe'  # VMware tools
+      - '\MsMpEng.exe'   # Windows Defender
+
+  filter_specific_av:
+    SourceImage|contains:
+      - 'Carbon Black'
+      - 'CrowdStrike'
+      - 'Defender'
+      - 'Tanium'
+
+  condition: selection_target and selection_access_rights and not filter_legitimate and not filter_specific_av
+
+falsepositives:
+  - Legitimate security software (AV, EDR) reading lsass.exe
+  - System administration tools
+  - Windows Update processes
+  - Backup software with VSS access
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.t1003.001
+  - attack.defense_evasion
+  - detection.endpoint
+  - sysmon.event_id_10
+
+fields:
+  - SourceImage
+  - SourceCommandLine
+  - TargetImage
+  - GrantedAccess
+  - CallTrace
+  - User
+  - SourceProcessId
+  - TargetProcessId

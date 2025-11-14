@@ -1,0 +1,133 @@
+title: SMB Share Enumeration Detection
+id: a9c85b7e-4d2f-4c8a-9e6f-3b7d9c8e1a5f
+status: stable
+description: |
+  Detects reconnaissance activities targeting SMB shares across the network.
+  Attackers enumerate network shares to identify sensitive data, map the network,
+  and find targets for lateral movement.
+
+  Detection includes net.exe commands, PowerShell share enumeration, and excessive
+  SMB connection attempts indicating automated scanning.
+
+  Maps to MITRE ATT&CK:
+  - T1021.002 (Remote Services: SMB/Windows Admin Shares)
+  - T1135 (Network Share Discovery)
+  - T1083 (File and Directory Discovery)
+
+references:
+  - https://attack.mitre.org/techniques/T1135/
+  - https://attack.mitre.org/techniques/T1021/002/
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  category: process_creation
+  product: windows
+
+detection:
+  selection_net_view:
+    Image|endswith: '\net.exe'
+    CommandLine|contains:
+      - 'view'
+      - 'share'
+      - 'use'
+
+  selection_net_multiple:
+    Image|endswith:
+      - '\net.exe'
+      - '\net1.exe'
+    CommandLine|contains:
+      - '\\\\*\\C$'
+      - '\\\\*\\admin$'
+      - '\\\\*\\IPC$'
+      - '/user:'
+
+  selection_powershell_shares:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - 'Get-SmbShare'
+      - 'Get-SmbMapping'
+      - 'Get-NetShare'
+      - 'Invoke-ShareFinder'
+      - 'Find-DomainShare'
+      - 'Get-DomainComputer'
+      - 'Invoke-FileFinder'
+
+  selection_enum_tools:
+    Image|endswith:
+      - '\nmap.exe'
+      - '\enum.exe'
+      - '\shareenum.exe'
+    CommandLine|contains:
+      - 'smb'
+      - 'share'
+      - '445'
+
+  # SharpHound / BloodHound enumeration
+  selection_sharphound:
+    CommandLine|contains:
+      - 'Invoke-ShareHunter'
+      - 'SharpHound'
+      - '-CollectionMethod'
+      - 'Invoke-BloodHound'
+
+  # Multiple SMB connections in short time
+  selection_multiple_connections:
+    DestinationPort: 445
+    EventID: 5140  # Network share access
+
+  filter_legitimate:
+    User|contains:
+      - 'SYSTEM'
+      - 'NETWORK SERVICE'
+      - 'backup'
+    Image|startswith:
+      - 'C:\Windows\System32\'
+      - 'C:\Program Files\Windows Defender\'
+
+  filter_sccm:
+    ParentImage|contains:
+      - 'ccmexec'
+      - 'SCCM'
+    CommandLine|contains:
+      - 'SMS_Client'
+
+  filter_backup_software:
+    Image|contains:
+      - 'Veeam'
+      - 'Backup'
+      - 'Acronis'
+
+  condition: (selection_net_view or selection_net_multiple or selection_powershell_shares or selection_enum_tools or selection_sharphound or selection_multiple_connections) and not filter_legitimate and not filter_sccm and not filter_backup_software
+
+falsepositives:
+  - System administrators mapping network drives
+  - Backup and file synchronization software
+  - SCCM/deployment tools accessing admin shares
+  - Legitimate network inventory tools
+
+level: medium
+
+tags:
+  - attack.lateral_movement
+  - attack.discovery
+  - attack.t1021.002
+  - attack.t1135
+  - attack.t1083
+  - detection.endpoint
+  - detection.network
+
+fields:
+  - Image
+  - CommandLine
+  - User
+  - ParentImage
+  - SourceIP
+  - DestinationIP
+  - DestinationPort
+  - ShareName
+  - SharePath

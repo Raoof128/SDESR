@@ -1,0 +1,152 @@
+title: Suspicious Scheduled Task Creation Detection
+id: d8f96c7e-5b4a-4d9c-8f7e-6a9c8d7e3b2f
+status: stable
+description: |
+  Detects creation of scheduled tasks used for persistence or privilege escalation.
+  Attackers frequently use Task Scheduler to execute malicious code at specific
+  times, at system startup, or when specific conditions are met.
+
+  Detection includes schtasks.exe usage, PowerShell ScheduledTasks cmdlets, and
+  suspicious task characteristics like execution from uncommon locations.
+
+  Maps to MITRE ATT&CK:
+  - T1053.005 (Scheduled Task/Job: Scheduled Task)
+  - T1053 (Scheduled Task/Job)
+
+references:
+  - https://attack.mitre.org/techniques/T1053/005/
+  - https://docs.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  category: process_creation
+  product: windows
+
+detection:
+  selection_schtasks:
+    Image|endswith: '\schtasks.exe'
+    CommandLine|contains:
+      - '/create'
+      - '-create'
+      - '/change'
+      - '-change'
+
+  selection_schtasks_suspicious:
+    Image|endswith: '\schtasks.exe'
+    CommandLine|contains|all:
+      - '/create'
+      - '/ru'
+      - 'SYSTEM'
+
+  selection_powershell_task:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - 'New-ScheduledTask'
+      - 'Register-ScheduledTask'
+      - 'Set-ScheduledTask'
+      - 'New-ScheduledTaskAction'
+      - 'New-ScheduledTaskTrigger'
+
+  # Suspicious task actions
+  selection_suspicious_action:
+    CommandLine|contains:
+      - '\AppData\Roaming\'
+      - '\AppData\Local\Temp\'
+      - '\Users\Public\'
+      - '\ProgramData\'
+      - 'powershell.exe -'
+      - 'cmd.exe /c'
+      - 'mshta.exe'
+      - 'rundll32.exe'
+      - 'regsvr32.exe'
+      - 'wscript.exe'
+      - 'cscript.exe'
+
+  # Tasks running as SYSTEM from user context
+  selection_privilege_escalation:
+    CommandLine|contains|all:
+      - '/ru'
+      - 'SYSTEM'
+    User|contains:
+      - 'Users'
+      - 'user'
+
+  # Hidden or obfuscated tasks
+  selection_hidden_task:
+    CommandLine|contains:
+      - '/tn "Microsoft\Windows\Windows'  # Masquerading as Windows task
+      - '/tn "Microsoft\Office\'  # Masquerading as Office task
+      - '/rl HIGHEST'
+      - '-enc'  # Encoded PowerShell
+      - '-e '
+
+  # COM handler for Task Scheduler
+  selection_com_taskscheduler:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\wscript.exe'
+      - '\cscript.exe'
+    CommandLine|contains:
+      - 'Schedule.Service'
+      - 'ITaskService'
+
+  filter_legitimate:
+    Image|startswith:
+      - 'C:\Windows\System32\'
+      - 'C:\Windows\SysWOW64\'
+    User|contains:
+      - 'SYSTEM'
+      - 'NETWORK SERVICE'
+    ParentImage|contains:
+      - 'services.exe'
+      - 'svchost.exe'
+
+  filter_software_installers:
+    ParentImage|contains:
+      - 'msiexec.exe'
+      - 'setup.exe'
+      - 'installer.exe'
+    CommandLine|contains:
+      - 'Google\Update'
+      - 'Adobe\Acrobat'
+      - 'Office\OfficeC2R'
+
+  filter_windows_tasks:
+    CommandLine|contains:
+      - 'Windows Defender'
+      - 'WindowsUpdate'
+      - 'DiskCleanup'
+
+  condition: (selection_schtasks or selection_schtasks_suspicious or selection_powershell_task or selection_suspicious_action or selection_privilege_escalation or selection_hidden_task or selection_com_taskscheduler) and not filter_legitimate and not filter_software_installers and not filter_windows_tasks
+
+falsepositives:
+  - Legitimate software creating scheduled tasks during installation
+  - System administrators creating maintenance tasks
+  - Windows Update and Defender scheduled tasks
+  - Backup software scheduling backup jobs
+
+level: high
+
+tags:
+  - attack.persistence
+  - attack.execution
+  - attack.privilege_escalation
+  - attack.t1053.005
+  - attack.t1053
+  - detection.endpoint
+  - detection.threat_hunting
+
+fields:
+  - Image
+  - CommandLine
+  - User
+  - ParentImage
+  - ParentCommandLine
+  - TaskName
+  - TargetFilename

@@ -1,0 +1,153 @@
+title: DNS Beaconing Detection
+id: j9h08f9g-8e7d-4h9f-9g8f-9f0b9e9g7h6g
+status: stable
+description: |
+  Detects DNS-based command and control (C2) beaconing patterns. Attackers use
+  DNS as a covert channel for C2 communication because DNS traffic is rarely
+  blocked and often unmonitored. Beaconing appears as repetitive DNS queries
+  at regular intervals.
+
+  Detection includes high-frequency DNS queries, suspicious domain patterns,
+  long subdomain names, and DNS tunneling indicators.
+
+  Maps to MITRE ATT&CK:
+  - T1071.004 (Application Layer Protocol: DNS)
+  - T1071 (Application Layer Protocol)
+  - T1568.002 (Dynamic Resolution: Domain Generation Algorithms)
+
+references:
+  - https://attack.mitre.org/techniques/T1071/004/
+  - https://www.sans.org/reading-room/whitepapers/dns/detecting-dns-tunneling-34152
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  category: dns
+  product: windows
+
+detection:
+  # High frequency DNS queries to same domain
+  selection_high_frequency:
+    query_count: '>50'  # More than 50 queries per minute
+    query_type:
+      - 'TXT'
+      - 'NULL'
+      - 'MX'
+      - 'CNAME'
+
+  # Suspicious TLD usage
+  selection_suspicious_tld:
+    query|endswith:
+      - '.tk'
+      - '.ml'
+      - '.ga'
+      - '.cf'
+      - '.gq'
+      - '.xyz'
+      - '.top'
+      - '.work'
+      - '.click'
+      - '.link'
+
+  # Long subdomain names (potential data exfiltration)
+  selection_long_subdomain:
+    subdomain_length: '>64'  # Abnormally long subdomain
+
+  # Excessive number of subdomains
+  selection_many_subdomains:
+    subdomain_count: '>5'
+    unique_queries: '>20'
+
+  # DNS query for TXT records (common for C2)
+  selection_txt_queries:
+    query_type: 'TXT'
+    query_count: '>10'
+
+  # Regular interval beaconing
+  selection_regular_intervals:
+    query_interval_stddev: '<2'  # Very consistent intervals
+    query_count: '>30'
+
+  # Encoded data in DNS queries
+  selection_encoded_queries:
+    query|re: '[a-zA-Z0-9]{32,}\.'  # Long hexadecimal-like strings
+    query_entropy: '>3.5'  # High entropy indicating encoding
+
+  # Known DGA patterns
+  selection_dga_pattern:
+    query|re: '^[a-z]{16,}\.com$'  # Random-looking domain
+    consonant_ratio: '>0.7'  # High consonant-to-vowel ratio
+
+  # DNS tunneling tools
+  selection_tunneling_tools:
+    Image|endswith:
+      - '\iodine.exe'
+      - '\dnscat2.exe'
+      - '\dns2tcp.exe'
+
+  # PowerShell DNS exfiltration
+  selection_powershell_dns:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - 'Resolve-DnsName'
+      - 'nslookup'
+      - '[System.Net.Dns]'
+      - 'Invoke-Dnscat2'
+
+  filter_legitimate_domains:
+    query|endswith:
+      - '.microsoft.com'
+      - '.windows.com'
+      - '.windowsupdate.com'
+      - '.google.com'
+      - '.amazonaws.com'
+      - '.cloudfront.net'
+
+  filter_known_cdn:
+    query|contains:
+      - 'cdn.'
+      - 'static.'
+      - 'content.'
+      - 'media.'
+
+  filter_internal:
+    query|endswith:
+      - '.local'
+      - '.internal'
+      - '.corp'
+
+  condition: (selection_high_frequency or selection_suspicious_tld or selection_long_subdomain or selection_many_subdomains or selection_txt_queries or selection_regular_intervals or selection_encoded_queries or selection_dga_pattern or selection_tunneling_tools or selection_powershell_dns) and not filter_legitimate_domains and not filter_known_cdn and not filter_internal
+
+falsepositives:
+  - Legitimate cloud services with frequent DNS lookups
+  - CDN services with many subdomains
+  - Certificate transparency monitoring
+  - Legitimate DNS tunneling for VPN services
+  - High-traffic web applications
+
+level: high
+
+tags:
+  - attack.command_and_control
+  - attack.exfiltration
+  - attack.t1071.004
+  - attack.t1071
+  - attack.t1568.002
+  - detection.network
+  - detection.threat_hunting
+
+fields:
+  - query
+  - query_type
+  - source_ip
+  - destination_ip
+  - query_count
+  - query_interval
+  - subdomain_length
+  - Image
+  - CommandLine
+  - answer

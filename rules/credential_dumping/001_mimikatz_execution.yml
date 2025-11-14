@@ -1,0 +1,92 @@
+title: Mimikatz Execution Detection
+id: a1d42bc4-8f3e-4c9a-9d8f-7e2a1c5b6d9e
+status: stable
+description: |
+  Detects Mimikatz credential dumping tool execution via command-line indicators,
+  process names, or characteristic file operations. Mimikatz is commonly used by
+  attackers to extract plaintext passwords, hashes, and Kerberos tickets from memory.
+
+  Maps to MITRE ATT&CK:
+  - T1003.001 (OS Credential Dumping: LSASS Memory)
+  - T1055 (Process Injection)
+  - T1110 (Brute Force)
+
+references:
+  - https://attack.mitre.org/techniques/T1003/001/
+  - https://github.com/gentilkiwi/mimikatz
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  category: process_creation
+  product: windows
+
+detection:
+  selection_cmd_line:
+    CommandLine|contains:
+      - 'sekurlsa::logonpasswords'
+      - 'sekurlsa::pth'
+      - 'sekurlsa::tickets'
+      - 'lsadump::sam'
+      - 'lsadump::secrets'
+      - 'lsadump::cache'
+      - 'privilege::debug'
+      - 'token::elevate'
+      - 'vault::cred'
+      - 'kerberos::golden'
+      - 'kerberos::silver'
+
+  selection_image:
+    Image|endswith:
+      - '\mimikatz.exe'
+      - '\mimikatz64.exe'
+      - '\mimilib.dll'
+
+  selection_original_filename:
+    OriginalFileName:
+      - 'mimikatz.exe'
+      - 'mimilib.dll'
+
+  # Common obfuscation attempts
+  selection_renamed:
+    Imphash:
+      - '0d1447d7a6cf8c6c1d1c6f8c5d9a8e2c'  # Known Mimikatz imphash
+      - 'b24c5eddfa5f1c0a3a7f7c5d6c8e1a9f'
+    CommandLine|contains:
+      - 'coffee'  # Mimikatz internal reference
+      - 'gentilkiwi'
+
+  filter_legitimate:
+    Image|startswith:
+      - 'C:\Program Files\'
+      - 'C:\Program Files (x86)\'
+    User|contains: 'SYSTEM'
+
+  condition: (selection_cmd_line or selection_image or selection_original_filename or selection_renamed) and not filter_legitimate
+
+falsepositives:
+  - Legitimate penetration testing with proper authorization
+  - Security training environments
+  - Authorized red team exercises
+
+level: critical
+
+tags:
+  - attack.credential_access
+  - attack.t1003.001
+  - attack.t1055
+  - attack.t1110
+  - detection.endpoint
+  - detection.threat_hunting
+
+fields:
+  - Image
+  - CommandLine
+  - User
+  - ParentImage
+  - ParentCommandLine
+  - Hashes
+  - SourceIP
+  - DestinationIP

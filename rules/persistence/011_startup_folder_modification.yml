@@ -1,0 +1,135 @@
+title: Startup Folder Modification Detection
+id: e9c87d6f-4b5a-4e8c-9d7f-6b9a8c7e4d3f
+status: stable
+description: |
+  Detects file creation or modification in Windows Startup folders, a simple
+  but effective persistence mechanism. Programs placed in Startup folders
+  execute automatically when a user logs in.
+
+  Detection includes file creation events in user and system-wide Startup
+  folders, as well as suspicious file types commonly used for malicious purposes.
+
+  Maps to MITRE ATT&CK:
+  - T1547.001 (Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder)
+  - T1204.002 (User Execution: Malicious File)
+
+references:
+  - https://attack.mitre.org/techniques/T1547/001/
+  - https://docs.microsoft.com/en-us/windows/win32/shell/startup
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  category: file_event
+  product: windows
+
+detection:
+  selection_startup_paths:
+    TargetFilename|contains:
+      - '\Microsoft\Windows\Start Menu\Programs\Startup\'
+      - '\Start Menu\Programs\Startup\'
+      - '\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\'
+
+  selection_common_startup:
+    TargetFilename|contains:
+      - '\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\'
+      - 'C:\Users\All Users\Microsoft\Windows\Start Menu\Programs\StartUp\'
+
+  # Suspicious file types
+  selection_executable_types:
+    TargetFilename|endswith:
+      - '.exe'
+      - '.dll'
+      - '.bat'
+      - '.cmd'
+      - '.vbs'
+      - '.js'
+      - '.ps1'
+      - '.lnk'
+      - '.scr'
+      - '.com'
+      - '.pif'
+
+  # PowerShell or command-line creating files in Startup
+  selection_process_creating:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\cmd.exe'
+      - '\wscript.exe'
+      - '\cscript.exe'
+      - '\mshta.exe'
+    TargetFilename|contains: '\Startup\'
+
+  # Copy or move operations to Startup
+  selection_copy_move:
+    CommandLine|contains|all:
+      - 'copy'
+      - '\Startup\'
+
+  selection_move:
+    CommandLine|contains|all:
+      - 'move'
+      - '\Startup\'
+
+  # LNK files with suspicious targets
+  selection_lnk_suspicious:
+    TargetFilename|endswith: '.lnk'
+    TargetFilename|contains: '\Startup\'
+
+  # Files dropped from suspicious locations
+  selection_source_suspicious:
+    Image|contains:
+      - '\AppData\Local\Temp\'
+      - '\Users\Public\'
+      - '\ProgramData\Temp\'
+      - '\Windows\Temp\'
+
+  filter_legitimate:
+    Image|startswith:
+      - 'C:\Program Files\'
+      - 'C:\Program Files (x86)\'
+      - 'C:\Windows\System32\'
+      - 'C:\Windows\SysWOW64\'
+
+  filter_known_software:
+    Image|contains:
+      - 'OneDrive'
+      - 'Dropbox'
+      - 'Google\Chrome'
+      - 'Microsoft\Teams'
+      - 'Zoom\bin'
+
+  filter_installers:
+    Image|endswith:
+      - '\msiexec.exe'
+      - '\setup.exe'
+      - '\installer.exe'
+
+  condition: (selection_startup_paths or selection_common_startup) and (selection_executable_types or selection_process_creating or selection_copy_move or selection_move or selection_lnk_suspicious or selection_source_suspicious) and not filter_legitimate and not filter_known_software and not filter_installers
+
+falsepositives:
+  - Legitimate software adding shortcuts to Startup folder during installation
+  - User manually adding programs to Startup
+  - Cloud storage sync clients (OneDrive, Dropbox)
+  - Communication tools (Teams, Slack, Zoom)
+
+level: medium
+
+tags:
+  - attack.persistence
+  - attack.t1547.001
+  - attack.t1204.002
+  - detection.endpoint
+  - sysmon.event_id_11
+
+fields:
+  - TargetFilename
+  - Image
+  - CommandLine
+  - User
+  - ProcessId
+  - SourceFilename
+  - CreationUtcTime

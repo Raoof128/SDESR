@@ -1,0 +1,460 @@
+{
+  "name": "SIEM Detection Engineering Portfolio - ATT&CK Coverage",
+  "versions": {
+    "attack": "14",
+    "navigator": "4.9.4",
+    "layer": "4.5"
+  },
+  "domain": "enterprise-attack",
+  "description": "Detection coverage across 18 Sigma rules covering 5 major attack scenarios: Credential Dumping, Lateral Movement, Persistence, Privilege Escalation, and Command & Control",
+  "filters": {
+    "platforms": [
+      "windows"
+    ]
+  },
+  "sorting": 0,
+  "layout": {
+    "layout": "side",
+    "aggregateFunction": "average",
+    "showID": false,
+    "showName": true,
+    "showAggregateScores": false,
+    "countUnscored": false
+  },
+  "hideDisabled": false,
+  "techniques": [
+    {
+      "techniqueID": "T1003",
+      "tactic": "credential-access",
+      "color": "#ff6666",
+      "comment": "4 Sigma rules: Mimikatz execution, LSASS access, Credential Manager, SAM dumping",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": true,
+      "score": 95
+    },
+    {
+      "techniqueID": "T1003.001",
+      "tactic": "credential-access",
+      "color": "#ff6666",
+      "comment": "Rule 001: Mimikatz Execution, Rule 002: LSASS Memory Access",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 100
+    },
+    {
+      "techniqueID": "T1003.002",
+      "tactic": "credential-access",
+      "color": "#ff6666",
+      "comment": "Rule 004: SAM Database Credential Dumping",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 100
+    },
+    {
+      "techniqueID": "T1003.003",
+      "tactic": "credential-access",
+      "color": "#ff6666",
+      "comment": "Rule 004: SAM Database Access (NTDS detection)",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 85
+    },
+    {
+      "techniqueID": "T1055",
+      "tactic": "privilege-escalation",
+      "color": "#ff9966",
+      "comment": "Rule 015: Process Injection Detection",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": true,
+      "score": 92
+    },
+    {
+      "techniqueID": "T1055.001",
+      "tactic": "privilege-escalation",
+      "color": "#ff9966",
+      "comment": "Rule 015: Dynamic-link Library Injection",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 90
+    },
+    {
+      "techniqueID": "T1055.002",
+      "tactic": "privilege-escalation",
+      "color": "#ff9966",
+      "comment": "Rule 015: Portable Executable Injection",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 88
+    },
+    {
+      "techniqueID": "T1055.012",
+      "tactic": "privilege-escalation",
+      "color": "#ff9966",
+      "comment": "Rule 015: Process Hollowing Detection",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 85
+    },
+    {
+      "techniqueID": "T1110",
+      "tactic": "credential-access",
+      "color": "#ff6666",
+      "comment": "Rule 001: Mimikatz Brute Force Indicators",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 75
+    },
+    {
+      "techniqueID": "T1112",
+      "tactic": "defense-evasion",
+      "color": "#ffcc66",
+      "comment": "Rule 009: Registry Run Key Modification",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 90
+    },
+    {
+      "techniqueID": "T1134",
+      "tactic": "privilege-escalation",
+      "color": "#ff9966",
+      "comment": "Rule 012: Token Impersonation Detection",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": true,
+      "score": 92
+    },
+    {
+      "techniqueID": "T1134.001",
+      "tactic": "privilege-escalation",
+      "color": "#ff9966",
+      "comment": "Rule 012: Token Impersonation/Theft, Rule 014: SeDebug Privilege",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 95
+    },
+    {
+      "techniqueID": "T1134.002",
+      "tactic": "privilege-escalation",
+      "color": "#ff9966",
+      "comment": "Rule 012: Create Process with Token",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 88
+    },
+    {
+      "techniqueID": "T1021.002",
+      "tactic": "lateral-movement",
+      "color": "#66ccff",
+      "comment": "Rule 005: PsExec Detection, Rule 007: SMB Share Enumeration, Rule 008: NTLM Relay",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 95
+    },
+    {
+      "techniqueID": "T1047",
+      "tactic": "execution",
+      "color": "#66ccff",
+      "comment": "Rule 006: WMI Remote Execution Detection",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 90
+    },
+    {
+      "techniqueID": "T1021.006",
+      "tactic": "lateral-movement",
+      "color": "#66ccff",
+      "comment": "Rule 006: WMI Remote Execution",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 88
+    },
+    {
+      "techniqueID": "T1135",
+      "tactic": "discovery",
+      "color": "#66ccff",
+      "comment": "Rule 007: SMB Share Enumeration",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 92
+    },
+    {
+      "techniqueID": "T1083",
+      "tactic": "discovery",
+      "color": "#66ccff",
+      "comment": "Rule 007: File and Directory Discovery via shares",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 80
+    },
+    {
+      "techniqueID": "T1557.001",
+      "tactic": "credential-access",
+      "color": "#ff6666",
+      "comment": "Rule 008: LLMNR/NBT-NS Poisoning and SMB Relay",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 85
+    },
+    {
+      "techniqueID": "T1187",
+      "tactic": "credential-access",
+      "color": "#ff6666",
+      "comment": "Rule 008: Forced Authentication via NTLM relay",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 82
+    },
+    {
+      "techniqueID": "T1570",
+      "tactic": "lateral-movement",
+      "color": "#66ccff",
+      "comment": "Rule 005: PsExec Lateral Tool Transfer, Rule 006: WMI Tool Transfer",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 88
+    },
+    {
+      "techniqueID": "T1569.002",
+      "tactic": "execution",
+      "color": "#66ccff",
+      "comment": "Rule 005: Service Execution via PsExec",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 90
+    },
+    {
+      "techniqueID": "T1547.001",
+      "tactic": "persistence",
+      "color": "#99cc99",
+      "comment": "Rule 009: Registry Run Keys, Rule 011: Startup Folder",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 93
+    },
+    {
+      "techniqueID": "T1053.005",
+      "tactic": "persistence",
+      "color": "#99cc99",
+      "comment": "Rule 010: Scheduled Task Creation",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 92
+    },
+    {
+      "techniqueID": "T1053",
+      "tactic": "execution",
+      "color": "#99cc99",
+      "comment": "Rule 010: Scheduled Task/Job",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": true,
+      "score": 90
+    },
+    {
+      "techniqueID": "T1204.002",
+      "tactic": "execution",
+      "color": "#99cc99",
+      "comment": "Rule 011: Malicious File Execution from Startup",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 80
+    },
+    {
+      "techniqueID": "T1548.002",
+      "tactic": "privilege-escalation",
+      "color": "#ff9966",
+      "comment": "Rule 013: UAC Bypass Attempt Detection",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 90
+    },
+    {
+      "techniqueID": "T1548",
+      "tactic": "privilege-escalation",
+      "color": "#ff9966",
+      "comment": "Rule 013: Abuse Elevation Control Mechanism",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": true,
+      "score": 88
+    },
+    {
+      "techniqueID": "T1071.004",
+      "tactic": "command-and-control",
+      "color": "#cc99ff",
+      "comment": "Rule 016: DNS Beaconing Detection",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 88
+    },
+    {
+      "techniqueID": "T1071.001",
+      "tactic": "command-and-control",
+      "color": "#cc99ff",
+      "comment": "Rule 017: Suspicious HTTP POST Activity",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 85
+    },
+    {
+      "techniqueID": "T1071",
+      "tactic": "command-and-control",
+      "color": "#cc99ff",
+      "comment": "Rules 016, 017, 018: Application Layer Protocol Detection",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": true,
+      "score": 87
+    },
+    {
+      "techniqueID": "T1568.002",
+      "tactic": "command-and-control",
+      "color": "#cc99ff",
+      "comment": "Rule 016: Domain Generation Algorithms in DNS",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 80
+    },
+    {
+      "techniqueID": "T1095",
+      "tactic": "command-and-control",
+      "color": "#cc99ff",
+      "comment": "Rule 018: Non-Application Layer Protocol (Rare Ports)",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 83
+    },
+    {
+      "techniqueID": "T1571",
+      "tactic": "command-and-control",
+      "color": "#cc99ff",
+      "comment": "Rule 018: Non-Standard Port Usage",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 85
+    },
+    {
+      "techniqueID": "T1041",
+      "tactic": "exfiltration",
+      "color": "#cc99ff",
+      "comment": "Rule 017: Exfiltration Over C2 Channel (HTTP POST)",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 82
+    },
+    {
+      "techniqueID": "T1555.004",
+      "tactic": "credential-access",
+      "color": "#ff6666",
+      "comment": "Rule 003: Windows Credential Manager Access",
+      "enabled": true,
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false,
+      "score": 88
+    }
+  ],
+  "gradient": {
+    "colors": [
+      "#ff6666ff",
+      "#ffe766ff",
+      "#8ec843ff"
+    ],
+    "minValue": 0,
+    "maxValue": 100
+  },
+  "legendItems": [
+    {
+      "label": "Credential Access (6 techniques)",
+      "color": "#ff6666"
+    },
+    {
+      "label": "Lateral Movement (4 techniques)",
+      "color": "#66ccff"
+    },
+    {
+      "label": "Persistence (3 techniques)",
+      "color": "#99cc99"
+    },
+    {
+      "label": "Privilege Escalation (7 techniques)",
+      "color": "#ff9966"
+    },
+    {
+      "label": "Command & Control (6 techniques)",
+      "color": "#cc99ff"
+    }
+  ],
+  "metadata": [],
+  "links": [],
+  "showTacticRowBackground": false,
+  "tacticRowBackground": "#dddddd",
+  "selectTechniquesAcrossTactics": true,
+  "selectSubtechniquesWithParent": false
+}

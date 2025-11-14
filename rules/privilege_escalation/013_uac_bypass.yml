@@ -1,0 +1,155 @@
+title: UAC Bypass Attempt Detection
+id: g9e87d7f-5c4b-4e9d-8f7e-6c9a8d7e4e3f
+status: stable
+description: |
+  Detects attempts to bypass User Account Control (UAC) using various known
+  techniques. UAC bypass allows attackers to elevate from medium to high
+  integrity level without triggering UAC prompts.
+
+  Detection includes common UAC bypass methods such as DLL hijacking, registry
+  manipulation, mock directories, and auto-elevated binaries.
+
+  Maps to MITRE ATT&CK:
+  - T1548.002 (Abuse Elevation Control Mechanism: Bypass User Account Control)
+  - T1548 (Abuse Elevation Control Mechanism)
+
+references:
+  - https://attack.mitre.org/techniques/T1548/002/
+  - https://github.com/hfiref0x/UACME
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  category: process_creation
+  product: windows
+
+detection:
+  # Eventvwr.exe UAC bypass
+  selection_eventvwr:
+    ParentImage|endswith: '\eventvwr.exe'
+    Image|endswith:
+      - '\cmd.exe'
+      - '\powershell.exe'
+      - '\pwsh.exe'
+
+  # Fodhelper.exe UAC bypass
+  selection_fodhelper:
+    ParentImage|endswith: '\fodhelper.exe'
+    IntegrityLevel: 'High'
+
+  # ComputerDefaults.exe UAC bypass
+  selection_computerdefaults:
+    ParentImage|endswith: '\ComputerDefaults.exe'
+    IntegrityLevel: 'High'
+
+  # SilentCleanup scheduled task UAC bypass
+  selection_silentcleanup:
+    ParentCommandLine|contains: 'DismHost.exe'
+    IntegrityLevel: 'High'
+
+  # Mock trusted directory UAC bypass
+  selection_mock_directory:
+    Image|contains:
+      - '\Windows \System32\'
+      - '\Windows  \System32\'
+      - 'C:\Windows \\'
+
+  # Registry manipulation for UAC bypass
+  selection_registry_uac:
+    TargetObject|contains:
+      - '\mscfile\shell\open\command'
+      - '\ms-settings\shell\open\command'
+      - '\exefile\shell\runas\command'
+      - 'Software\Classes\ms-settings\shell\open\command'
+
+  # DLL hijacking for UAC bypass
+  selection_dll_hijack:
+    Image|endswith:
+      - '\wusa.exe'
+      - '\pkgmgr.exe'
+      - '\dism.exe'
+      - '\cliconfg.exe'
+    ImageLoaded|contains:
+      - '\AppData\Local\Temp\'
+      - '\Users\Public\'
+
+  # CMSTP UAC bypass
+  selection_cmstp:
+    Image|endswith: '\cmstp.exe'
+    CommandLine|contains:
+      - '/au'
+      - '/ni'
+      - '/s'
+
+  # Disk Cleanup Handler UAC bypass
+  selection_diskcleanup:
+    Image|endswith: '\cleanmgr.exe'
+    CommandLine|contains: '/autoclean'
+    IntegrityLevel: 'High'
+
+  # Suspicious PowerShell with UAC bypass indicators
+  selection_powershell_uac:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - 'Invoke-UACBypass'
+      - 'Bypass-UAC'
+      - 'eventvwr.exe'
+      - 'fodhelper.exe'
+      - 'ComputerDefaults.exe'
+
+  # Token elevation without UAC prompt
+  selection_unexpected_elevation:
+    TokenElevationType: 'Full'
+    ProcessCommandLine|contains:
+      - '\AppData\Local\Temp\'
+      - '\Users\Public\'
+      - '\ProgramData\'
+
+  filter_legitimate_installers:
+    Image|startswith:
+      - 'C:\Program Files\'
+      - 'C:\Program Files (x86)\'
+    ParentImage|endswith:
+      - '\msiexec.exe'
+      - '\setup.exe'
+
+  filter_windows_updates:
+    Image|contains:
+      - 'Windows Update'
+      - 'TrustedInstaller'
+    ParentImage|contains:
+      - 'TiWorker.exe'
+      - 'wuauclt.exe'
+
+  condition: (selection_eventvwr or selection_fodhelper or selection_computerdefaults or selection_silentcleanup or selection_mock_directory or selection_registry_uac or selection_dll_hijack or selection_cmstp or selection_diskcleanup or selection_powershell_uac or selection_unexpected_elevation) and not filter_legitimate_installers and not filter_windows_updates
+
+falsepositives:
+  - Legitimate software installations requiring elevation
+  - System administrators using auto-elevated binaries
+  - Windows Update processes
+  - Trusted installer operations
+
+level: high
+
+tags:
+  - attack.privilege_escalation
+  - attack.defense_evasion
+  - attack.t1548.002
+  - attack.t1548
+  - detection.endpoint
+  - detection.threat_hunting
+
+fields:
+  - Image
+  - CommandLine
+  - ParentImage
+  - ParentCommandLine
+  - IntegrityLevel
+  - User
+  - TargetObject
+  - ImageLoaded
+  - TokenElevationType

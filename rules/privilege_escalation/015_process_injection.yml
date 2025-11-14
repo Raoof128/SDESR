@@ -1,0 +1,173 @@
+title: Process Injection Detection
+id: i8g97e8f-7d6c-4g9e-8f7e-8e9b8d8f6g5f
+status: stable
+description: |
+  Detects various process injection techniques used for privilege escalation,
+  defense evasion, and execution. Process injection allows attackers to run
+  code in the address space of another process, often targeting privileged
+  processes like explorer.exe or svchost.exe.
+
+  Detection includes DLL injection, process hollowing, reflective DLL injection,
+  and other memory manipulation techniques.
+
+  Maps to MITRE ATT&CK:
+  - T1055 (Process Injection)
+  - T1055.001 (Dynamic-link Library Injection)
+  - T1055.002 (Portable Executable Injection)
+  - T1055.012 (Process Hollowing)
+
+references:
+  - https://attack.mitre.org/techniques/T1055/
+  - https://www.elastic.co/blog/ten-process-injection-techniques
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  product: windows
+  service: sysmon
+
+detection:
+  # Remote thread creation (classic injection)
+  selection_remote_thread:
+    EventID: 8  # CreateRemoteThread
+    StartModule: null
+    TargetImage|endswith:
+      - '\explorer.exe'
+      - '\svchost.exe'
+      - '\lsass.exe'
+      - '\winlogon.exe'
+      - '\csrss.exe'
+
+  # Suspicious process access for injection
+  selection_process_access:
+    EventID: 10  # ProcessAccess
+    GrantedAccess|contains:
+      - '0x1F3FFF'  # PROCESS_ALL_ACCESS
+      - '0x1FFFFF'  # PROCESS_ALL_ACCESS (alternate)
+      - '0x1438'    # PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_CREATE_THREAD
+      - '0x143A'    # Injection-specific access rights
+
+  # Memory allocation in remote process
+  selection_remote_memory:
+    EventID: 10
+    CallTrace|contains:
+      - 'VirtualAllocEx'
+      - 'WriteProcessMemory'
+      - 'NtAllocateVirtualMemory'
+
+  # DLL injection via SetWindowsHookEx
+  selection_hooks:
+    EventID: 12  # RegistryEvent (Object create and delete)
+    TargetObject|contains:
+      - '\Windows\CurrentVersion\Windows\Appinit_Dlls'
+      - '\Windows\CurrentVersion\Windows\LoadAppInit_DLLs'
+
+  # Reflective DLL injection indicators
+  selection_reflective_injection:
+    EventID: 7  # ImageLoaded
+    ImageLoaded|contains:
+      - '\AppData\Local\Temp\'
+      - '\Users\Public\'
+      - '\ProgramData\Temp\'
+    Signed: 'false'
+
+  # Process hollowing detection
+  selection_process_hollowing:
+    EventID: 25  # ProcessTampering
+    Type: 'Image is hollowed'
+
+  # Suspicious parent-child relationships
+  selection_suspicious_parent:
+    EventID: 1  # ProcessCreation
+    ParentImage|endswith:
+      - '\powershell.exe'
+      - '\cmd.exe'
+      - '\wscript.exe'
+      - '\cscript.exe'
+      - '\mshta.exe'
+      - '\rundll32.exe'
+    Image|endswith:
+      - '\svchost.exe'
+      - '\dllhost.exe'
+      - '\rundll32.exe'
+
+  # PowerShell injection cmdlets
+  selection_powershell_injection:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - 'Invoke-DllInjection'
+      - 'Invoke-ReflectivePEInjection'
+      - 'Invoke-Shellcode'
+      - 'VirtualAllocEx'
+      - 'WriteProcessMemory'
+      - 'CreateRemoteThread'
+      - 'QueueUserAPC'
+      - 'NtCreateThreadEx'
+
+  # Known injection tools
+  selection_injection_tools:
+    Image|endswith:
+      - '\mavinject.exe'
+      - '\mavinject32.exe'
+    CommandLine|contains: '/INJECTRUNNING'
+
+  filter_legitimate_signed:
+    Signed: 'true'
+    SignatureStatus: 'Valid'
+    Company|contains:
+      - 'Microsoft Corporation'
+      - 'Adobe Systems'
+
+  filter_av_edr:
+    SourceImage|contains:
+      - 'Windows Defender'
+      - 'CrowdStrike'
+      - 'Carbon Black'
+      - 'Tanium'
+      - 'SentinelOne'
+
+  filter_system_processes:
+    SourceUser: 'NT AUTHORITY\SYSTEM'
+    SourceImage|startswith:
+      - 'C:\Windows\System32\'
+      - 'C:\Windows\SysWOW64\'
+
+  condition: (selection_remote_thread or selection_process_access or selection_remote_memory or selection_hooks or selection_reflective_injection or selection_process_hollowing or selection_suspicious_parent or selection_powershell_injection or selection_injection_tools) and not filter_legitimate_signed and not filter_av_edr and not filter_system_processes
+
+falsepositives:
+  - Antivirus and EDR software performing behavioral analysis
+  - Debugging tools
+  - Performance monitoring software
+  - Legitimate application updaters
+  - Some game anti-cheat systems
+
+level: critical
+
+tags:
+  - attack.privilege_escalation
+  - attack.defense_evasion
+  - attack.execution
+  - attack.t1055
+  - attack.t1055.001
+  - attack.t1055.002
+  - attack.t1055.012
+  - detection.endpoint
+  - sysmon.event_id_8
+  - sysmon.event_id_10
+
+fields:
+  - SourceImage
+  - TargetImage
+  - StartModule
+  - GrantedAccess
+  - CallTrace
+  - Image
+  - CommandLine
+  - ParentImage
+  - ImageLoaded
+  - Signed
+  - SignatureStatus

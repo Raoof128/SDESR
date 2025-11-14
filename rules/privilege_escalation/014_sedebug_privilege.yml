@@ -1,0 +1,139 @@
+title: SeDebug Privilege Enabled Detection
+id: h7f96d8e-6c5b-4f9d-8e7f-7d9a8c8e5f4f
+status: stable
+description: |
+  Detects processes enabling SeDebugPrivilege, which allows reading and writing
+  to the memory of other processes. This privilege is commonly abused for
+  credential dumping, process injection, and other malicious activities.
+
+  SeDebugPrivilege should only be used by debuggers and system administration
+  tools, making this a high-fidelity indicator of suspicious activity.
+
+  Maps to MITRE ATT&CK:
+  - T1134.001 (Access Token Manipulation: Token Impersonation/Theft)
+  - T1055 (Process Injection)
+  - T1003.001 (OS Credential Dumping: LSASS Memory)
+
+references:
+  - https://attack.mitre.org/techniques/T1134/001/
+  - https://docs.microsoft.com/en-us/windows/win32/secauthz/privilege-constants
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  product: windows
+  service: security
+
+detection:
+  # Sensitive privilege use
+  selection_privilege_use:
+    EventID: 4673  # Sensitive privilege use
+    PrivilegeList|contains: 'SeDebugPrivilege'
+    ObjectServer: 'Security'
+
+  # Special privileges assigned to new logon
+  selection_special_privileges:
+    EventID: 4672  # Special privileges assigned to new logon
+    PrivilegeList|contains: 'SeDebugPrivilege'
+
+  # Specific processes enabling SeDebug
+  selection_process_sedebug:
+    EventID: 4673
+    PrivilegeList|contains: 'SeDebugPrivilege'
+    ProcessName|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\cmd.exe'
+      - '\rundll32.exe'
+      - '\regsvr32.exe'
+      - '\mshta.exe'
+      - '\wmic.exe'
+      - '\wscript.exe'
+      - '\cscript.exe'
+
+  # PowerShell adjusting privileges
+  selection_powershell_privilege:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - 'AdjustTokenPrivileges'
+      - 'SeDebugPrivilege'
+      - 'OpenProcessToken'
+      - 'LookupPrivilegeValue'
+
+  # Suspicious user context
+  selection_user_context:
+    EventID: 4672
+    PrivilegeList|contains: 'SeDebugPrivilege'
+    SubjectUserName|contains:
+      - 'admin'
+      - 'user'
+    SubjectUserName|endswith: '$'  # Not a computer account (inverted by NOT)
+
+  filter_legitimate_debuggers:
+    ProcessName|endswith:
+      - '\vsdebuggerconsole.exe'
+      - '\devenv.exe'
+      - '\windbg.exe'
+      - '\x64dbg.exe'
+      - '\ollydbg.exe'
+
+  filter_legitimate_system_tools:
+    ProcessName|endswith:
+      - '\taskmgr.exe'
+      - '\procexp.exe'
+      - '\procexp64.exe'
+      - '\procmon.exe'
+      - '\vmware-vmx.exe'
+      - '\vmtoolsd.exe'
+
+  filter_antivirus:
+    ProcessName|contains:
+      - 'Windows Defender'
+      - 'MsMpEng.exe'
+      - 'NisSrv.exe'
+      - 'CrowdStrike'
+      - 'Carbon Black'
+      - 'Tanium'
+      - 'SentinelOne'
+
+  filter_system_processes:
+    SubjectUserName: 'SYSTEM'
+    ProcessName|startswith:
+      - 'C:\Windows\System32\'
+      - 'C:\Windows\SysWOW64\'
+
+  condition: (selection_privilege_use or selection_special_privileges or selection_process_sedebug or selection_powershell_privilege) and not filter_legitimate_debuggers and not filter_legitimate_system_tools and not filter_antivirus and not filter_system_processes
+
+falsepositives:
+  - Visual Studio debugger
+  - Sysinternals tools (Process Explorer, Process Monitor)
+  - Antivirus and EDR software
+  - VMware tools
+  - Authorized debugging sessions
+  - Performance monitoring tools
+
+level: high
+
+tags:
+  - attack.privilege_escalation
+  - attack.credential_access
+  - attack.defense_evasion
+  - attack.t1134.001
+  - attack.t1055
+  - attack.t1003.001
+  - detection.endpoint
+  - detection.threat_hunting
+
+fields:
+  - SubjectUserName
+  - SubjectDomainName
+  - ProcessName
+  - PrivilegeList
+  - ObjectServer
+  - Image
+  - CommandLine
+  - ProcessId

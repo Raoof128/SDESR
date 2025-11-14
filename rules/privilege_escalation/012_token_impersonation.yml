@@ -1,0 +1,133 @@
+title: Token Impersonation Detection
+id: f8d95c7e-6a4b-4e9c-8d7f-5b9a7c8e3d2f
+status: stable
+description: |
+  Detects token impersonation and manipulation techniques used for privilege
+  escalation. Attackers use token impersonation to execute code in the context
+  of another user, often escalating from user to SYSTEM privileges.
+
+  Detection includes SeDebugPrivilege enablement, token manipulation APIs, and
+  suspicious handle operations on privileged processes.
+
+  Maps to MITRE ATT&CK:
+  - T1134 (Access Token Manipulation)
+  - T1134.001 (Token Impersonation/Theft)
+  - T1134.002 (Create Process with Token)
+
+references:
+  - https://attack.mitre.org/techniques/T1134/
+  - https://docs.microsoft.com/en-us/windows/win32/secauthz/access-tokens
+
+author: SIEM Detection Engineering Portfolio
+date: 2025/11/14
+modified: 2025/11/14
+
+logsource:
+  product: windows
+  service: security
+
+detection:
+  # Privilege assignment events
+  selection_privilege_use:
+    EventID: 4673  # Sensitive privilege use
+    PrivilegeList|contains:
+      - 'SeDebugPrivilege'
+      - 'SeImpersonatePrivilege'
+      - 'SeAssignPrimaryTokenPrivilege'
+      - 'SeTcbPrivilege'
+
+  # Process accessing privileged processes
+  selection_process_access:
+    EventID: 4663  # Object access
+    ObjectType: 'Process'
+    AccessMask:
+      - '0x1400'  # PROCESS_QUERY_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION
+      - '0x1000'  # PROCESS_QUERY_LIMITED_INFORMATION
+      - '0x0400'  # PROCESS_QUERY_INFORMATION
+
+  # Special logon events (indicates token usage)
+  selection_special_logon:
+    EventID: 4672  # Special privileges assigned
+    PrivilegeList|contains:
+      - 'SeDebugPrivilege'
+      - 'SeImpersonatePrivilege'
+
+  # Token elevation events
+  selection_token_elevation:
+    EventID:
+      - 4624  # Successful logon
+      - 4648  # Logon using explicit credentials
+    ElevatedToken: 'Yes'
+    TokenElevationType:
+      - '%%1936'  # Full token
+      - '%%1937'  # Elevated token
+
+  # Tools known for token manipulation
+  selection_impersonation_tools:
+    Image|endswith:
+      - '\incognito.exe'
+      - '\invoke-tokenmanipulation.ps1'
+      - '\tokenvator.exe'
+    CommandLine|contains:
+      - 'Invoke-TokenManipulation'
+      - 'incognito.exe'
+      - 'list_tokens'
+      - 'impersonate_token'
+
+  # PowerShell token manipulation
+  selection_powershell_tokens:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+    CommandLine|contains:
+      - 'DuplicateToken'
+      - 'OpenProcessToken'
+      - 'AdjustTokenPrivileges'
+      - 'ImpersonateLoggedOnUser'
+      - '[Security.Principal.WindowsIdentity]::Impersonate'
+
+  filter_legitimate_system:
+    SubjectUserName|endswith: '$'  # Computer accounts
+    ProcessName|endswith:
+      - '\lsass.exe'
+      - '\services.exe'
+      - '\svchost.exe'
+      - '\csrss.exe'
+
+  filter_known_services:
+    ProcessName|contains:
+      - 'Windows Defender'
+      - 'CrowdStrike'
+      - 'Carbon Black'
+      - 'Tanium'
+
+  condition: (selection_privilege_use or selection_process_access or selection_special_logon or selection_token_elevation or selection_impersonation_tools or selection_powershell_tokens) and not filter_legitimate_system and not filter_known_services
+
+falsepositives:
+  - Security software requiring SeDebugPrivilege
+  - System administration tools
+  - Backup software
+  - Authorized penetration testing
+
+level: critical
+
+tags:
+  - attack.privilege_escalation
+  - attack.defense_evasion
+  - attack.t1134
+  - attack.t1134.001
+  - attack.t1134.002
+  - detection.endpoint
+  - detection.threat_hunting
+
+fields:
+  - SubjectUserName
+  - TargetUserName
+  - ProcessName
+  - PrivilegeList
+  - ObjectName
+  - AccessMask
+  - ElevatedToken
+  - TokenElevationType
+  - Image
+  - CommandLine
