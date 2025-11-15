@@ -1,0 +1,63 @@
+# EditorConfig for SIEM Detection Engineering Portfolio
+# https://editorconfig.org
+
+root = true
+
+# Default settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Python files
+[*.py]
+indent_style = space
+indent_size = 4
+max_line_length = 100
+
+# YAML files (Sigma rules, Docker Compose, GitHub Actions)
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# JSON files (Elastic conversion, ATT&CK Navigator)
+[*.json]
+indent_style = space
+indent_size = 2
+
+# Markdown files
+[*.md]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
+max_line_length = 120
+
+# Shell scripts
+[*.sh]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+
+# Splunk SPL files
+[*.spl]
+indent_style = space
+indent_size = 2
+
+# CSV files
+[*.csv]
+trim_trailing_whitespace = false
+
+# XML files (Sysmon configuration)
+[*.xml]
+indent_style = space
+indent_size = 2
+
+# Makefiles
+[Makefile]
+indent_style = tab
+indent_size = 4
+
+# Batch files (Windows)
+[*.{bat,cmd}]
+end_of_line = crlf

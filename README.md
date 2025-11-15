@@ -309,6 +309,22 @@ siem-detection-engineering/
 ├── README.md                          # This file
 ├── DETECTION_COVERAGE.md              # Detailed MITRE ATT&CK mapping
 ├── LICENSE                            # MIT License
+├── SECURITY.md                        # Security policy & vulnerability reporting
+├── CODE_OF_CONDUCT.md                 # Community guidelines
+├── CONTRIBUTING.md                    # Contribution guidelines
+├── CHANGELOG.md                       # Version history
+├── .gitignore                         # Git exclusions
+├── .editorconfig                      # Code formatting standards
+├── requirements.txt                   # Python dependencies
+├── quickstart.sh                      # One-command validation & conversion
+│
+├── .github/                           # GitHub configuration
+│   ├── workflows/
+│   │   └── validate.yml               # CI/CD pipeline
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.md              # Bug report template
+│   │   └── false_positive.md          # FP report template
+│   └── pull_request_template.md       # PR template
 │
 ├── rules/                             # Sigma detection rules
 │   ├── credential_dumping/            # 4 rules
@@ -346,8 +362,7 @@ siem-detection-engineering/
 └── docs/                              # Additional documentation
     ├── MITRE_ATTCK_MAPPING.md         # Technique references
     ├── FALSE_POSITIVE_TUNING.md       # FP reduction strategies
-    ├── PERFORMANCE_METRICS.md         # Detailed metrics
-    └── CONTRIBUTING.md                # Contribution guidelines
+    └── PERFORMANCE_METRICS.md         # Detailed metrics
 ```
 
 ---
@@ -472,11 +487,15 @@ By completing this portfolio, you demonstrate:
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 - Adding new Sigma rules
 - Improving conversion scripts
 - Reporting false positives
 - Enhancing documentation
+
+See also:
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) - Community guidelines
+- [SECURITY.md](SECURITY.md) - Security policy and vulnerability disclosure
 
 ---
 
@@ -505,4 +524,4 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ---
 
-**Last Updated:** November 2025 | **Version:** 1.0.0 | **Status:** Production-Ready
+**Last Updated:** November 2025 | **Version:** 1.0.1 | **Status:** Production-Ready
